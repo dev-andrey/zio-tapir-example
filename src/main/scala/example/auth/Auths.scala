@@ -13,9 +13,8 @@ object Auths {
   def auth(token: String): ZIO[Auths, ApiError, User] =
     ZIO.accessM(_.get.auth(token))
 
-  val live: ULayer[Auths] = ZLayer.succeed(new Service {
-    override def auth(token: String): IO[ApiError, User] =
-      if (token == "secret") IO.succeed(User("Tradey McTradeyface", 42))
-      else IO.fail(ApiError.Unauthorized())
-  })
+  val live: ULayer[Auths] = ZLayer.succeed { token =>
+    if (token == "secret") IO.succeed(User("Tradey McTradeyface", 42))
+    else IO.fail(ApiError.Unauthorized())
+  }
 }

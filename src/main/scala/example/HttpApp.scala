@@ -18,8 +18,8 @@ import zio.interop.catz.{ taskConcurrentInstance, zioContextShift }
 
 sealed trait ApiError
 object ApiError {
-  final case class Unauthorized(message: String = "unathorized") extends ApiError
-  final case class UserError(code: Int, message: String)         extends ApiError
+  final case class Unauthorized(message: String = "unauthorized") extends ApiError
+  final case class UserError(code: Int, message: String)          extends ApiError
 }
 
 object HttpApp {
