@@ -7,15 +7,10 @@ import example.food.{ Food, Foods }
 import example.pet.Pets.Pets
 import example.pet.{ Pet, Pets }
 import io.circe.generic.auto._
-import org.http4s.HttpRoutes
 import sttp.model.StatusCode
 import sttp.tapir.generic.auto.schemaForCaseClass
 import sttp.tapir.json.circe._
-import sttp.tapir.server.http4s.ztapir._
 import sttp.tapir.ztapir._
-import zio.RIO
-import zio.clock._
-import zio.interop.catz.{ taskConcurrentInstance, zioContextShift }
 
 sealed trait ApiError
 object ApiError {
@@ -51,25 +46,17 @@ object HttpApp {
 
   private val getFoods = secure.get.in("foods").out(jsonBody[List[Food]])
 
-  private val endpoints = List(
+  private val secureEndpoints = List(
+    getFoods.serverLogic(_ => Foods.getFoods).widen[AppEnv]
+  )
+
+  private val insecureEndpoints = List(
     getPets.zServerLogic(_ => Pets.getPets).widen[AppEnv],
     getPetsById.zServerLogic {
       case (id, Some("2.0")) => Pets.getPetWithFallBack(id)
       case (id, _)           => Pets.getPetById(id)
     }.widen[AppEnv],
-    getFoods.serverLogic(_ => Foods.getFoods).widen[AppEnv],
   )
 
-  val routes: HttpRoutes[RIO[AppEnv with Clock, *]] =
-    ZHttp4sServerInterpreter
-      .from(endpoints)
-      .toRoutes
-
-  val yaml: String = {
-    import sttp.tapir.docs.openapi._
-    import sttp.tapir.openapi.circe.yaml._
-    OpenAPIDocsInterpreter
-      .serverEndpointsToOpenAPI(endpoints, "Our pets and what they eat", "1.0")
-      .toYaml
-  }
+  val endpoints = secureEndpoints ++ insecureEndpoints
 }
