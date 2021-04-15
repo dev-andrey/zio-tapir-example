@@ -9,6 +9,7 @@ object Pets {
   trait Service {
     def getPets: IO[String, List[Pet]]
     def getPetById(id: Long): IO[String, Pet]
+    def getPetWithFallBack(id: Long): UIO[Pet]
   }
 
   def getPets: ZIO[Pets, String, List[Pet]] =
@@ -16,6 +17,9 @@ object Pets {
 
   def getPetById(id: Long): ZIO[Pets, String, Pet] =
     ZIO.accessM(_.get.getPetById(id))
+
+  def getPetWithFallBack(id: Long): ZIO[Pets, String, Pet] =
+    ZIO.accessM(_.get.getPetWithFallBack(id))
 
   val live: ZLayer[Console, String, Pets] = ZLayer.fromService { console =>
     new Service {
@@ -31,9 +35,15 @@ object Pets {
         for {
           _ <- console.putStrLn(s"Got request for pet: $id")
           pet <-
-            if (id == 35) UIO(Pet("Tapirus terrestris", "https://en.wikipedia.org/wiki/Tapir"))
+            if (id == 10) UIO(Pet("Tapirus terrestris", "https://en.wikipedia.org/wiki/Tapir"))
+            else if (id == 100) UIO(Pet("Panda", "https://en.wikipedia.org/wiki/Panda"))
             else IO.fail(s"Unknown pet id $id")
         } yield pet
+
+      def getPetWithFallBack(id: Long): UIO[Pet] =
+        getPetById(id)
+          .orElseSucceed(Pet("Platypus", "https://en.wikipedia.org/wiki/Platypus"))
+
     }
   }
 }

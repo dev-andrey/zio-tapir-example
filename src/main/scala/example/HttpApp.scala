@@ -9,6 +9,7 @@ import example.pet.{ Pet, Pets }
 import io.circe.generic.auto._
 import org.http4s.HttpRoutes
 import sttp.model.StatusCode
+import sttp.tapir.generic.auto.schemaForCaseClass
 import sttp.tapir.json.circe._
 import sttp.tapir.server.http4s.ztapir._
 import sttp.tapir.ztapir._
@@ -26,9 +27,10 @@ object HttpApp {
   type AppEnv = Pets with Foods with Auths
 
   import ApiError._
+
   private val secure =
     endpoint
-      .in(auth.bearer[String])
+      .in(auth.bearer[String]())
       .errorOut(
         oneOf[ApiError](
           statusMapping(StatusCode.Unauthorized, jsonBody[Unauthorized].description("unauthorized")),
@@ -37,31 +39,37 @@ object HttpApp {
       )
       .zServerLogicForCurrent(token => Auths.auth(token))
 
-  private val getPetByIdV2 =
+  private val getPetsById =
     endpoint
       .get
-      .in(header("Version", "2.0"))
       .in("pets" / path[Long]("id"))
+      .in(header[Option[String]]("Version"))
       .errorOut(stringBody)
       .out(jsonBody[Pet])
-  private val getPetById = endpoint.get.in("pets" / path[Long]("id")).errorOut(stringBody).out(jsonBody[Pet])
-  private val getPets    = endpoint.get.in("pets").errorOut(stringBody).out(jsonBody[List[Pet]])
+
+  private val getPets = endpoint.get.in("pets").errorOut(stringBody).out(jsonBody[List[Pet]])
 
   private val getFoods = secure.get.in("foods").out(jsonBody[List[Food]])
 
   private val endpoints = List(
     getPets.zServerLogic(_ => Pets.getPets).widen[AppEnv],
-    getPetByIdV2.zServerLogic(id => Pets.getPetById(id + 1)).widen[AppEnv],
-    getPetById.zServerLogic(id => Pets.getPetById(id)).widen[AppEnv],
+    getPetsById.zServerLogic {
+      case (id, Some("2.0")) => Pets.getPetWithFallBack(id)
+      case (id, _)           => Pets.getPetById(id)
+    }.widen[AppEnv],
     getFoods.serverLogic(_ => Foods.getFoods).widen[AppEnv],
   )
 
   val routes: HttpRoutes[RIO[AppEnv with Clock, *]] =
-    endpoints.toRoutes
+    ZHttp4sServerInterpreter
+      .from(endpoints)
+      .toRoutes
 
   val yaml: String = {
     import sttp.tapir.docs.openapi._
     import sttp.tapir.openapi.circe.yaml._
-    endpoints.toOpenAPI("Our pets and what they eat", "1.0").toYaml
+    OpenAPIDocsInterpreter
+      .serverEndpointsToOpenAPI(endpoints, "Our pets and what they eat", "1.0")
+      .toYaml
   }
 }

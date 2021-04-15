@@ -23,7 +23,7 @@ object Main extends App {
   val server: ZIO[zio.ZEnv with AppEnv, Throwable, Unit] =
     ZIO.runtime[ZEnv with AppEnv].flatMap { implicit runtime =>
       BlazeServerBuilder[RIO[AppEnv with Clock, *]](runtime.platform.executor.asEC)
-        .bindHttp(8080, "localhost")
+        .bindHttp(8080, "0.0.0.0")
         .withHttpApp(
           CORS(
             Router(

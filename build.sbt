@@ -1,9 +1,11 @@
+Global / onChangedBuildSource := ReloadOnSourceChanges
+
 lazy val library =
   new {
     object v {
       val zio            = "1.0.5"
       val zioInteropCats = "2.4.0.0"
-      val tapir          = "0.17.0-M6"
+      val tapir          = "0.17.19"
       val circe          = "0.13.0"
     }
     val zio            = "dev.zio" %% "zio"              % v.zio
@@ -24,7 +26,10 @@ lazy val library =
   }
 
 lazy val root = (project in file("."))
+  .enablePlugins(JavaAppPackaging, DockerPlugin)
+  .settings(dockerSettings)
   .settings(
+    name := "zio-tapir-example",
     scalaVersion := "2.13.5",
     organization := "dev.alebe",
     startYear := Some(2020),
@@ -55,3 +60,8 @@ lazy val root = (project in file("."))
     addCompilerPlugin("org.typelevel" %% "kind-projector"     % "0.11.3" cross CrossVersion.full),
     addCompilerPlugin("com.olegpy"    %% "better-monadic-for" % "0.3.1"),
   )
+
+lazy val dockerSettings = Seq(
+  dockerExposedPorts ++= Seq(8080),
+  dockerUpdateLatest := true,
+)

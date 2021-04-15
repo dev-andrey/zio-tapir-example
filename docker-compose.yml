@@ -1,0 +1,5 @@
+services:
+  rest-api:
+    image: zio-tapir-example:latest
+    ports:
+      - "8080:8080"
